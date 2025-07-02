@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jenkins Jelly Email Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: #252526;
+            border-right: 1px solid #3e3e42;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .file-explorer {
+            flex: 1;
+            padding: 10px;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .file-explorer h3 {
+            margin-bottom: 10px;
+            color: #cccccc;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .file-list {
+            list-style: none;
+        }
+
+        .file-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .file-item:hover {
+            background: #2a2d2e;
+        }
+
+        .file-item.active {
+            background: #094771;
+            color: #ffffff;
+        }
+
+        .file-icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        .variables-panel {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .variables-panel h3 {
+            margin-bottom: 10px;
+            color: #cccccc;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .variable-item {
+            margin-bottom: 12px;
+        }
+
+        .variable-label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #9cdcfe;
+        }
+
+        .variable-input {
+            width: 100%;
+            padding: 6px 8px;
+            background: #3c3c3c;
+            border: 1px solid #464647;
+            border-radius: 3px;
+            color: #d4d4d4;
+            font-size: 12px;
+        }
+
+        .variable-input:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+
+        .apply-btn {
+            width: 100%;
+            padding: 8px;
+            background: #0e639c;
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        .apply-btn:hover {
+            background: #1177bb;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btn {
+            background: #3c3c3c;
+            border: none;
+            color: #d4d4d4;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #464647;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .status-message {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #0e639c;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .status-message.show {
+            opacity: 1;
+        }
+
+        .status-message.error {
+            background: #dc3545;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tab-bar {
+            display: flex;
+            background: #2d2d30;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-right: 1px solid #3e3e42;
+            font-size: 13px;
+            background: #2d2d30;
+            color: #cccccc;
+        }
+
+        .tab:hover {
+            background: #37373d;
+        }
+
+        .tab.active {
+            background: #1e1e1e;
+            color: #ffffff;
+        }
+
+        .content-area {
+            flex: 1;
+            display: flex;
+        }
+
+        .editor-pane, .preview-pane {
+            flex: 1;
+            background: #1e1e1e;
+        }
+
+        .editor-pane {
+            border-right: 1px solid #3e3e42;
+        }
+
+        .editor {
+            width: 100%;
+            height: 100%;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+        }
+
+        .preview {
+            height: 100%;
+            background: white;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .preview iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .email-preview {
+            background: white;
+            color: black;
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .no-file-selected {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #6a6a6a;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- File Explorer -->
+            <div class="file-explorer">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3>📁 Files</h3>
+                    <div class="file-actions">
+                        <button class="action-btn" onclick="openFile()" title="Open File">📄</button>
+                        <button class="action-btn" onclick="openFolder()" title="Open Folder">📁</button>
+                    </div>
+                </div>
+                <ul class="file-list" id="fileList">
+                    <li class="file-item active" data-file="build-notification.jelly">
+                        <span class="file-icon">📧</span>
+                        build-notification.jelly
+                    </li>
+                    <li class="file-item" data-file="test-results.jelly">
+                        <span class="file-icon">📧</span>
+                        test-results.jelly
+                    </li>
+                    <li class="file-item" data-file="deployment.jelly">
+                        <span class="file-icon">📧</span>
+                        deployment.jelly
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Variables Panel -->
+            <div class="variables-panel">
+                <h3>⚙️ Variables</h3>
+                <div id="variablesContainer">
+                    <div class="variable-item">
+                        <label class="variable-label">BUILD_NUMBER</label>
+                        <input type="text" class="variable-input" value="123" data-var="BUILD_NUMBER">
+                    </div>
+                    <div class="variable-item">
+                        <label class="variable-label">PROJECT_NAME</label>
+                        <input type="text" class="variable-input" value="MyProject" data-var="PROJECT_NAME">
+                    </div>
+                    <div class="variable-item">
+                        <label class="variable-label">BUILD_STATUS</label>
+                        <input type="text" class="variable-input" value="SUCCESS" data-var="BUILD_STATUS">
+                    </div>
+                    <div class="variable-item">
+                        <label class="variable-label">BUILD_URL</label>
+                        <input type="text" class="variable-input" value="http://jenkins.local/job/MyProject/123/" data-var="BUILD_URL">
+                    </div>
+                </div>
+                <button class="apply-btn" onclick="applyVariables()">Apply Changes</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <div class="tab active" data-tab="editor" onclick="switchTab('editor')">Editor</div>
+                <div class="tab" data-tab="preview" onclick="switchTab('preview')">Preview</div>
+                <div class="tab" data-tab="split" onclick="switchTab('split')">Split View</div>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Editor Pane -->
+                <div class="editor-pane" id="editorPane">
+                    <textarea class="editor" id="editor" placeholder="Select a file to edit..."></textarea>
+                </div>
+
+                <!-- Preview Pane -->
+                <div class="preview-pane hidden" id="previewPane">
+                    <div class="preview" id="preview">
+                        <div class="no-file-selected">Select a file to preview</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="fileInput" class="file-input" accept=".jelly,.xml,.html,.txt" multiple>
+    <input type="file" id="folderInput" class="file-input" webkitdirectory multiple>
+    
+    <!-- Status message -->
+    <div id="statusMessage" class="status-message"></div>
+
+    <script>
+        // Sample Jelly templates
+        const templates = {
+            'build-notification.jelly': `<?xml version="1.0" encoding="UTF-8"?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define">
+  <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 5px; }
+        .status-success { color: #28a745; }
+        .status-failure { color: #dc3545; }
+        .build-info { margin: 20px 0; }
+        .footer { margin-top: 30px; color: #6c757d; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h2>Build Notification</h2>
+        <p class="status-\${BUILD_STATUS == 'SUCCESS' ? 'success' : 'failure'}">
+          Build \${BUILD_STATUS}
+        </p>
+      </div>
+      
+      <div class="build-info">
+        <h3>Project: \${PROJECT_NAME}</h3>
+        <p><strong>Build Number:</strong> \${BUILD_NUMBER}</p>
+        <p><strong>Status:</strong> \${BUILD_STATUS}</p>
+        <p><strong>Build URL:</strong> <a href="\${BUILD_URL}">\${BUILD_URL}</a></p>
+      </div>
+      
+      <div class="footer">
+        <p>This is an automated message from Jenkins</p>
+      </div>
+    </body>
+  </html>
+</j:jelly>`,
+
+            'test-results.jelly': `<?xml version="1.0" encoding="UTF-8"?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define">
+  <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-summary { background: #e9ecef; padding: 15px; border-radius: 5px; }
+        .pass { color: #28a745; }
+        .fail { color: #dc3545; }
+      </style>
+    </head>
+    <body>
+      <h2>Test Results for \${PROJECT_NAME}</h2>
+      
+      <div class="test-summary">
+        <h3>Build #\${BUILD_NUMBER}</h3>
+        <p><span class="pass">✓ Passed: 45 tests</span></p>
+        <p><span class="fail">✗ Failed: 2 tests</span></p>
+        <p>Total Duration: 5m 32s</p>
+      </div>
+      
+      <p><a href="\${BUILD_URL}">View full build details</a></p>
+    </body>
+  </html>
+</j:jelly>`,
+
+            'deployment.jelly': `<?xml version="1.0" encoding="UTF-8"?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define">
+  <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .deployment-info { background: #d4edda; padding: 15px; border-radius: 5px; }
+      </style>
+    </head>
+    <body>
+      <h2>Deployment Notification</h2>
+      
+      <div class="deployment-info">
+        <h3>\${PROJECT_NAME} Deployed Successfully</h3>
+        <p><strong>Build:</strong> #\${BUILD_NUMBER}</p>
+        <p><strong>Environment:</strong> Production</p>
+        <p><strong>Deployed at:</strong> 2025-07-02 10:30:00</p>
+      </div>
+      
+      <p><a href="\${BUILD_URL}">View build details</a></p>
+    </body>
+  </html>
+</j:jelly>`
+        };
+
+        let currentFile = 'build-notification.jelly';
+        let variables = {
+            'BUILD_NUMBER': '123',
+            'PROJECT_NAME': 'MyProject',
+            'BUILD_STATUS': 'SUCCESS',
+            'BUILD_URL': 'http://jenkins.local/job/MyProject/123/'
+        };
+        let loadedFiles = {};
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load default templates
+            Object.keys(templates).forEach(fileName => {
+                loadedFiles[fileName] = templates[fileName];
+            });
+            
+            renderFileList();
+            loadFile(currentFile);
+            updateVariables();
+            
+            // Setup file input handlers
+            setupFileHandlers();
+        });
+
+        // File selection
+        document.getElementById('fileList').addEventListener('click', function(e) {
+            const fileItem = e.target.closest('.file-item');
+            if (fileItem) {
+                // Update active state
+                document.querySelectorAll('.file-item').forEach(item => item.classList.remove('active'));
+                fileItem.classList.add('active');
+                
+                // Load file
+                const fileName = fileItem.dataset.file;
+                loadFile(fileName);
+            }
+        });
+
+        function loadFile(fileName) {
+            currentFile = fileName;
+            const content = loadedFiles[fileName] || '';
+            document.getElementById('editor').value = content;
+            updatePreview();
+            extractVariables(content);
+        }
+
+        function renderFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            
+            Object.keys(loadedFiles).forEach(fileName => {
+                const li = document.createElement('li');
+                li.className = 'file-item';
+                if (fileName === currentFile) {
+                    li.classList.add('active');
+                }
+                li.dataset.file = fileName;
+                
+                const icon = getFileIcon(fileName);
+                li.innerHTML = `
+                    <span class="file-icon">${icon}</span>
+                    ${fileName}
+                `;
+                
+                fileList.appendChild(li);
+            });
+        }
+
+        function getFileIcon(fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            switch(ext) {
+                case 'jelly':
+                case 'xml': return '📧';
+                case 'html': return '🌐';
+                case 'txt': return '📄';
+                default: return '📄';
+            }
+        }
+
+        function setupFileHandlers() {
+            const fileInput = document.getElementById('fileInput');
+            const folderInput = document.getElementById('folderInput');
+            
+            fileInput.addEventListener('change', handleFileSelect);
+            folderInput.addEventListener('change', handleFolderSelect);
+        }
+
+        function openFile() {
+            document.getElementById('fileInput').click();
+        }
+
+        function openFolder() {
+            document.getElementById('folderInput').click();
+        }
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                loadFilesFromInput(files);
+                showStatus(`Loaded ${files.length} file(s)`, 'success');
+            }
+        }
+
+        function handleFolderSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                loadFilesFromInput(files);
+                showStatus(`Loaded ${files.length} file(s) from folder`, 'success');
+            }
+        }
+
+        function loadFilesFromInput(files) {
+            let loadedCount = 0;
+            
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const fileName = file.name;
+                    const content = e.target.result;
+                    
+                    // Add to loaded files
+                    loadedFiles[fileName] = content;
+                    loadedCount++;
+                    
+                    // If this is the first file loaded, switch to it
+                    if (loadedCount === 1) {
+                        currentFile = fileName;
+                        loadFile(fileName);
+                    }
+                    
+                    // Update file list
+                    renderFileList();
+                };
+                reader.onerror = function() {
+                    showStatus(`Error reading file: ${file.name}`, 'error');
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        function showStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.textContent = message;
+            statusDiv.className = `status-message ${type} show`;
+            
+            setTimeout(() => {
+                statusDiv.classList.remove('show');
+            }, 3000);
+        }
+
+        function extractVariables(content) {
+            const variableMatches = content.match(/\$\{([A-Z_]+)\}/g);
+            if (variableMatches) {
+                const foundVars = [...new Set(variableMatches.map(match => match.slice(2, -1)))];
+                updateVariablesPanel(foundVars);
+            }
+        }
+
+        function updateVariablesPanel(foundVars) {
+            const container = document.getElementById('variablesContainer');
+            container.innerHTML = '';
+            
+            foundVars.forEach(varName => {
+                if (!variables[varName]) {
+                    variables[varName] = 'default_value';
+                }
+                
+                const varDiv = document.createElement('div');
+                varDiv.className = 'variable-item';
+                varDiv.innerHTML = `
+                    <label class="variable-label">${varName}</label>
+                    <input type="text" class="variable-input" value="${variables[varName]}" data-var="${varName}">
+                `;
+                container.appendChild(varDiv);
+            });
+        }
+
+        function switchTab(tabName) {
+            // Update tab active state
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            
+            const editorPane = document.getElementById('editorPane');
+            const previewPane = document.getElementById('previewPane');
+            
+            switch(tabName) {
+                case 'editor':
+                    editorPane.classList.remove('hidden');
+                    previewPane.classList.add('hidden');
+                    break;
+                case 'preview':
+                    editorPane.classList.add('hidden');
+                    previewPane.classList.remove('hidden');
+                    updatePreview();
+                    break;
+                case 'split':
+                    editorPane.classList.remove('hidden');
+                    previewPane.classList.remove('hidden');
+                    updatePreview();
+                    break;
+            }
+        }
+
+        function applyVariables() {
+            // Collect variable values
+            document.querySelectorAll('.variable-input').forEach(input => {
+                variables[input.dataset.var] = input.value;
+            });
+            
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const content = document.getElementById('editor').value;
+            let processedContent = content;
+            
+            // Replace variables
+            Object.keys(variables).forEach(varName => {
+                const regex = new RegExp(`\\$\\{${varName}\\}`, 'g');
+                processedContent = processedContent.replace(regex, variables[varName]);
+            });
+            
+            // Extract HTML content between <html> tags
+            const htmlMatch = processedContent.match(/<html[\s\S]*?<\/html>/i);
+            const htmlContent = htmlMatch ? htmlMatch[0] : '<div class="no-file-selected">No HTML content found</div>';
+            
+            document.getElementById('preview').innerHTML = htmlContent;
+        }
+
+        // Auto-update preview when editing
+        document.getElementById('editor').addEventListener('input', function() {
+            // Update the loaded file content
+            loadedFiles[currentFile] = document.getElementById('editor').value;
+            
+            if (!document.getElementById('previewPane').classList.contains('hidden')) {
+                setTimeout(updatePreview, 300); // Debounce
+            }
+        });
+    </script>
+</body>
+</html>
